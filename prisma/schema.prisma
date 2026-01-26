@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  PROVIDER
+  CLIENT
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+
+  providerProfile ProviderProfile?
+  appointments    Appointment[] @relation("ClientAppointments")
+}
+
+model ProviderProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  displayName String
+  specialty   String?
+
+  user         User          @relation(fields: [userId], references: [id])
+  services     Service[]
+  availability AvailabilityRule[]
+  exceptions   AvailabilityException[]
+  appointments Appointment[] @relation("ProviderAppointments")
+}
+
+model Service {
+  id              String   @id @default(uuid())
+  providerId      String
+  name            String
+  durationMinutes Int
+  bufferMinutes   Int      @default(0)
+  isActive        Boolean  @default(true)
+
+  provider ProviderProfile @relation(fields: [providerId], references: [id])
+}
+
+model AvailabilityRule {
+  id         String @id @default(uuid())
+  providerId String
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+
+  provider ProviderProfile @relation(fields: [providerId], references: [id])
+}
+
+model AvailabilityException {
+  id         String   @id @default(uuid())
+  providerId String
+  startAt    DateTime
+  endAt      DateTime
+  reason     String?
+
+  provider ProviderProfile @relation(fields: [providerId], references: [id])
+}
+
+model Appointment {
+  id         String            @id @default(uuid())
+  providerId String
+  clientId   String
+  serviceId  String
+  startAt    DateTime
+  endAt      DateTime
+  status     AppointmentStatus @default(PENDING)
+  createdAt  DateTime          @default(now())
+
+  provider ProviderProfile @relation("ProviderAppointments", fields: [providerId], references: [id])
+  client   User            @relation("ClientAppointments", fields: [clientId], references: [id])
+}
