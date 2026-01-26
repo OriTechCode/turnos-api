@@ -11,7 +11,8 @@ export class AuthService {
     private jwt: JwtService,
   ) {}
 
-  async register(email: string, password: string, role: Role) {
+  async register(email: string, password: string) {
+    const role = Role.CLIENT;
     const existing = await this.users.findByEmail(email);
     if (existing) throw new BadRequestException("Email already in use");
 
