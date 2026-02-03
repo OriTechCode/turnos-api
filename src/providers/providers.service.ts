@@ -33,4 +33,45 @@ export class ProvidersService {
       },
     });
   }
+
+    async listMyServices(userId: string) {
+    const profile = await this.prisma.providerProfile.findUnique({ where: { userId } });
+    if (!profile) throw new NotFoundException("Provider profile not found");
+
+    return this.prisma.service.findMany({
+        where: { providerId: profile.id },
+        orderBy: { name: "asc" },
+    });
+    }
+
+    async createMyService(userId: string, dto: { name: string; durationMinutes: number; bufferMinutes?: number; isActive?: boolean }) {
+    const profile = await this.prisma.providerProfile.findUnique({ where: { userId } });
+    if (!profile) throw new NotFoundException("Provider profile not found");
+
+    return this.prisma.service.create({
+        data: {
+        providerId: profile.id,
+        name: dto.name,
+        durationMinutes: dto.durationMinutes,
+        bufferMinutes: dto.bufferMinutes ?? 0,
+        isActive: dto.isActive ?? true,
+        },
+    });
+    }
+
+    async updateMyService(userId: string, serviceId: string, dto: any) {
+    const profile = await this.prisma.providerProfile.findUnique({ where: { userId } });
+    if (!profile) throw new NotFoundException("Provider profile not found");
+
+    // asegura que el service pertenezca al provider
+    const existing = await this.prisma.service.findFirst({
+        where: { id: serviceId, providerId: profile.id },
+    });
+    if (!existing) throw new NotFoundException("Service not found");
+
+    return this.prisma.service.update({
+        where: { id: serviceId },
+        data: dto,
+    });
+    }
 }
