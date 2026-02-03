@@ -1,10 +1,12 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, Req, UseGuards, Param, Patch } from "@nestjs/common";
 import { ProvidersService } from "./providers.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 import { Roles } from "../auth/roles.decorator";
 import { Role } from "@prisma/client";
 import { UpsertProviderProfileDto } from "./dto/upsert-provider-profile.dto";
+import { CreateServiceDto } from "./dto/create-service.dto";
+import { UpdateServiceDto } from "./dto/update-service.dto";
 
 @Controller("providers")
 export class ProvidersController {
@@ -23,4 +25,25 @@ export class ProvidersController {
   upsertMe(@Req() req: any, @Body() dto: UpsertProviderProfileDto) {
     return this.providers.upsertMyProfile(req.user.sub, dto);
   }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.PROVIDER)
+    @Get("me/services")
+    listMyServices(@Req() req: any) {
+    return this.providers.listMyServices(req.user.sub);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.PROVIDER)
+    @Post("me/services")
+    createMyService(@Req() req: any, @Body() dto: CreateServiceDto) {
+    return this.providers.createMyService(req.user.sub, dto);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.PROVIDER)
+    @Patch("me/services/:id")
+    updateMyService(@Req() req: any, @Param("id") id: string, @Body() dto: UpdateServiceDto) {
+    return this.providers.updateMyService(req.user.sub, id, dto);
+    }
 }
