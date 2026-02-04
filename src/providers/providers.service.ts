@@ -290,5 +290,65 @@ export class ProvidersService {
       };
     }
 
+    async listMyAppointments(userId: string, date?: string, tz?: string) {
+      const profile = await this.prisma.providerProfile.findUnique({
+        where: { userId },
+        select: { id: true, timeZone: true },
+      });
+      if (!profile) throw new NotFoundException("Provider profile not found");
+
+      const outTz = tz ?? profile.timeZone;
+
+      if (tz && !DateTime.local().setZone(tz).isValid) {
+        throw new BadRequestException("tz must be a valid IANA timezone");
+      }
+
+      let where: any = { providerId: profile.id };
+
+      // date es la fecha "del provider" (importante)
+      if (date) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          throw new BadRequestException("date must be YYYY-MM-DD");
+        }
+
+        const startLocal = DateTime.fromISO(date, { zone: profile.timeZone }).startOf("day");
+        const endLocal = startLocal.plus({ days: 1 });
+
+        if (!startLocal.isValid) throw new BadRequestException("Invalid date");
+
+        where = {
+          ...where,
+          startAt: { lt: endLocal.toUTC().toJSDate() },
+          endAt: { gt: startLocal.toUTC().toJSDate() },
+        };
+      }
+
+      const items = await this.prisma.appointment.findMany({
+        where,
+        orderBy: { startAt: "asc" },
+        select: {
+          id: true,
+          clientId: true,
+          serviceId: true,
+          startAt: true,
+          endAt: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      return {
+        providerId: profile.id,
+        providerTimeZone: profile.timeZone,
+        outputTimeZone: outTz,
+        date: date ?? null,
+        appointments: items.map((a) => ({
+          ...a,
+          start: DateTime.fromJSDate(a.startAt, { zone: "utc" }).setZone(outTz).toISO(),
+          end: DateTime.fromJSDate(a.endAt, { zone: "utc" }).setZone(outTz).toISO(),
+          timeZone: outTz,
+        })),
+      };
+    }
 
 }
