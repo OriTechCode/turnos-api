@@ -6,6 +6,8 @@ import { CreateAvailabilityExceptionDto } from "./dto/availability/create-except
 import { localToUtcIso } from "./time";
 import { DateTime } from "luxon";
 import { overlaps, providerDayBoundsUtc, toClientIso, Interval } from "./slots.util";
+import { AppointmentStatus } from "@prisma/client";
+import { UpdateAppointmentStatusDto } from "./dto/appointments/update-appointment-status.dto";
 
 @Injectable()
 export class ProvidersService {
@@ -349,6 +351,50 @@ export class ProvidersService {
           timeZone: outTz,
         })),
       };
+    }
+
+    async updateMyAppointmentStatus(userId: string, appointmentId: string, dto: UpdateAppointmentStatusDto) {
+      const profile = await this.prisma.providerProfile.findUnique({
+        where: { userId },
+        select: { id: true },
+      });
+      if (!profile) throw new NotFoundException("Provider profile not found");
+
+      // permitimos solo estos estados desde provider
+      const allowed: AppointmentStatus[] = ["COMPLETED", "NO_SHOW", "CANCELLED"];
+      if (!allowed.includes(dto.status)) {
+        throw new BadRequestException(`Provider can set status only to: ${allowed.join(", ")}`);
+      }
+
+      const appt = await this.prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: { id: true, providerId: true, status: true },
+      });
+      if (!appt) throw new NotFoundException("Appointment not found");
+
+      if (appt.providerId !== profile.id) {
+        throw new BadRequestException("Not your appointment");
+      }
+
+      if (appt.status !== "CONFIRMED") {
+        throw new BadRequestException(
+          `Only CONFIRMED appointments can be updated (current: ${appt.status})`,
+        );
+      }
+
+      return this.prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { status: dto.status },
+        select: {
+          id: true,
+          providerId: true,
+          clientId: true,
+          serviceId: true,
+          startAt: true,
+          endAt: true,
+          status: true,
+        },
+      });
     }
 
 }
