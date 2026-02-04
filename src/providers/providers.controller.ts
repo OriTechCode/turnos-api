@@ -9,6 +9,7 @@ import { CreateServiceDto } from "./dto/create-service.dto";
 import { UpdateServiceDto } from "./dto/update-service.dto";
 import { CreateAvailabilityRuleDto } from "./dto/availability/create-availability-rule.dto";
 import { CreateAvailabilityExceptionDto } from "./dto/availability/create-exception.dto";
+import { UpdateAppointmentStatusDto } from "./dto/appointments/update-appointment-status.dto";
 import { DateTime } from "luxon";
 
 
@@ -126,6 +127,17 @@ export class ProvidersController {
     @Query("tz") tz?: string,
   ) {
     return this.providers.listMyAppointments(req.user.sub, date, tz);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  @Patch("me/appointments/:id/status")
+  updateAppointmentStatus(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() dto: UpdateAppointmentStatusDto,
+  ) {
+    return this.providers.updateMyAppointmentStatus(req.user.sub, id, dto);
   }
 
 }
