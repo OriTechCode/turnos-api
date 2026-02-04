@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Post, Req, UseGuards, Get, Patch, Param, Query  } from "@nestjs/common";
 import { Role } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
@@ -16,4 +16,19 @@ export class AppointmentsController {
   create(@Req() req: any, @Body() dto: CreateAppointmentDto) {
     return this.appts.createForClient(req.user.sub, dto);
   }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.CLIENT)
+    @Get("me")
+    listMine(@Req() req: any, @Query("tz") tz?: string) {
+    return this.appts.listMine(req.user.sub, tz);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.CLIENT)
+    @Patch(":id/cancel")
+    cancel(@Req() req: any, @Param("id") id: string) {
+    return this.appts.cancel(req.user.sub, id);
+    }
+    
 }

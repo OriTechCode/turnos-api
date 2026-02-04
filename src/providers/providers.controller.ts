@@ -30,91 +30,102 @@ export class ProvidersController {
     return this.providers.upsertMyProfile(req.user.sub, dto);
   }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.PROVIDER)
-    @Get("me/services")
-    listMyServices(@Req() req: any) {
-    return this.providers.listMyServices(req.user.sub);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  @Get("me/services")
+  listMyServices(@Req() req: any) {
+  return this.providers.listMyServices(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  @Post("me/services")
+  createMyService(@Req() req: any, @Body() dto: CreateServiceDto) {
+  return this.providers.createMyService(req.user.sub, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  @Patch("me/services/:id")
+  updateMyService(@Req() req: any, @Param("id") id: string, @Body() dto: UpdateServiceDto) {
+  return this.providers.updateMyService(req.user.sub, id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  @Post("me/availability/rules")
+  addRule(@Req() req: any, @Body() dto: CreateAvailabilityRuleDto) {
+    return this.providers.addAvailabilityRule(req.user.sub, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  @Get("me/availability/rules")
+  listRules(@Req() req: any) {
+    return this.providers.listAvailabilityRules(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  @Delete("me/availability/rules/:id")
+  deleteRule(@Req() req: any, @Param("id") id: string) {
+    return this.providers.deleteAvailabilityRule(req.user.sub, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  @Post("me/availability/exceptions")
+  addException(@Req() req: any, @Body() dto: CreateAvailabilityExceptionDto) {
+    return this.providers.addAvailabilityException(req.user.sub, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  @Get("me/availability/exceptions")
+  listExceptions(@Req() req: any) {
+    return this.providers.listAvailabilityExceptions(req.user.sub);
+  }
+
+  @Get(":providerId/slots")
+  getSlots(
+    @Param("providerId") providerId: string,
+    @Query("date") date: string,
+    @Query("serviceId") serviceId: string,
+    @Query("tz") tz?: string,
+  ) {
+    if (!date) {
+      throw new BadRequestException("date is required (YYYY-MM-DD)");
     }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.PROVIDER)
-    @Post("me/services")
-    createMyService(@Req() req: any, @Body() dto: CreateServiceDto) {
-    return this.providers.createMyService(req.user.sub, dto);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new BadRequestException("date must be in YYYY-MM-DD format");
     }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.PROVIDER)
-    @Patch("me/services/:id")
-    updateMyService(@Req() req: any, @Param("id") id: string, @Body() dto: UpdateServiceDto) {
-    return this.providers.updateMyService(req.user.sub, id, dto);
+    if (!serviceId) {
+      throw new BadRequestException("serviceId is required");
     }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.PROVIDER)
-    @Post("me/availability/rules")
-    addRule(@Req() req: any, @Body() dto: CreateAvailabilityRuleDto) {
-      return this.providers.addAvailabilityRule(req.user.sub, dto);
+    if (tz && !DateTime.local().setZone(tz).isValid) {
+      throw new BadRequestException("tz must be a valid IANA timezone");
     }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.PROVIDER)
-    @Get("me/availability/rules")
-    listRules(@Req() req: any) {
-      return this.providers.listAvailabilityRules(req.user.sub);
-    }
+    return this.providers.getSlotsForDate({
+      providerId,
+      date,
+      serviceId,
+      clientTz: tz,
+    });
+  }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.PROVIDER)
-    @Delete("me/availability/rules/:id")
-    deleteRule(@Req() req: any, @Param("id") id: string) {
-      return this.providers.deleteAvailabilityRule(req.user.sub, id);
-    }
-
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.PROVIDER)
-    @Post("me/availability/exceptions")
-    addException(@Req() req: any, @Body() dto: CreateAvailabilityExceptionDto) {
-      return this.providers.addAvailabilityException(req.user.sub, dto);
-    }
-
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(Role.PROVIDER)
-    @Get("me/availability/exceptions")
-    listExceptions(@Req() req: any) {
-      return this.providers.listAvailabilityExceptions(req.user.sub);
-    }
-
-    @Get(":providerId/slots")
-    getSlots(
-      @Param("providerId") providerId: string,
-      @Query("date") date: string,
-      @Query("serviceId") serviceId: string,
-      @Query("tz") tz?: string,
-    ) {
-      if (!date) {
-        throw new BadRequestException("date is required (YYYY-MM-DD)");
-      }
-
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        throw new BadRequestException("date must be in YYYY-MM-DD format");
-      }
-
-      if (!serviceId) {
-        throw new BadRequestException("serviceId is required");
-      }
-      
-      if (tz && !DateTime.local().setZone(tz).isValid) {
-        throw new BadRequestException("tz must be a valid IANA timezone");
-      }
-
-      return this.providers.getSlotsForDate({
-        providerId,
-        date,
-        serviceId,
-        clientTz: tz,
-      });
-    }
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PROVIDER)
+  @Get("me/appointments")
+  listMyAppointments(
+    @Req() req: any,
+    @Query("date") date?: string,
+    @Query("tz") tz?: string,
+  ) {
+    return this.providers.listMyAppointments(req.user.sub, date, tz);
+  }
 
 }

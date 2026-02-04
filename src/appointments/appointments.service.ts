@@ -119,7 +119,7 @@ export class AppointmentsService {
         },
       });
 
-      // devolver además en tz cliente (opción B)
+      // devolver además en tz cliente 
       return {
         ...appt,
         clientTimeZone: clientTz,
@@ -128,4 +128,52 @@ export class AppointmentsService {
       };
     });
   }
+
+    async listMine(clientUserId: string, tz?: string) {
+    const clientTz = tz ?? "utc";
+
+    if (tz && !DateTime.local().setZone(tz).isValid) {
+        throw new BadRequestException("tz must be a valid IANA timezone");
+    }
+
+    const items = await this.prisma.appointment.findMany({
+        where: { clientId: clientUserId },
+        orderBy: { startAt: "asc" },
+        select: {
+        id: true,
+        providerId: true,
+        serviceId: true,
+        startAt: true,
+        endAt: true,
+        status: true,
+        createdAt: true,
+        },
+    });
+
+    return items.map((a) => ({
+        ...a,
+        start: DateTime.fromJSDate(a.startAt, { zone: "utc" }).setZone(clientTz).toISO(),
+        end: DateTime.fromJSDate(a.endAt, { zone: "utc" }).setZone(clientTz).toISO(),
+        timeZone: clientTz,
+    }));
+    }
+
+    async cancel(clientUserId: string, appointmentId: string) {
+    const appt = await this.prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: { id: true, clientId: true, status: true },
+    });
+    if (!appt) throw new NotFoundException("Appointment not found");
+    if (appt.clientId !== clientUserId) throw new BadRequestException("Not your appointment");
+
+    if (appt.status === "CANCELLED") return { ok: true };
+
+    await this.prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { status: "CANCELLED" },
+    });
+
+    return { ok: true };
+    }
+
 }
