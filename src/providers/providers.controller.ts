@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards, Param, Patch } from "@nestjs/common";
+import { Body, Controller, Get, Post, Req, UseGuards, Param, Patch, Delete } from "@nestjs/common";
 import { ProvidersService } from "./providers.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -7,6 +7,7 @@ import { Role } from "@prisma/client";
 import { UpsertProviderProfileDto } from "./dto/upsert-provider-profile.dto";
 import { CreateServiceDto } from "./dto/create-service.dto";
 import { UpdateServiceDto } from "./dto/update-service.dto";
+import { CreateAvailabilityRuleDto } from "./dto/availability/create-availability-rule.dto";
 
 @Controller("providers")
 export class ProvidersController {
@@ -45,5 +46,26 @@ export class ProvidersController {
     @Patch("me/services/:id")
     updateMyService(@Req() req: any, @Param("id") id: string, @Body() dto: UpdateServiceDto) {
     return this.providers.updateMyService(req.user.sub, id, dto);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.PROVIDER)
+    @Post("me/availability/rules")
+    addRule(@Req() req: any, @Body() dto: CreateAvailabilityRuleDto) {
+      return this.providers.addAvailabilityRule(req.user.sub, dto);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.PROVIDER)
+    @Get("me/availability/rules")
+    listRules(@Req() req: any) {
+      return this.providers.listAvailabilityRules(req.user.sub);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.PROVIDER)
+    @Delete("me/availability/rules/:id")
+    deleteRule(@Req() req: any, @Param("id") id: string) {
+      return this.providers.deleteAvailabilityRule(req.user.sub, id);
     }
 }

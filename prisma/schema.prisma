@@ -36,6 +36,7 @@ model ProviderProfile {
   userId      String   @unique
   displayName String
   specialty   String?
+  timeZone    String   @default("America/Argentina/Mendoza")
 
   user         User          @relation(fields: [userId], references: [id])
   services     Service[]
@@ -59,8 +60,8 @@ model AvailabilityRule {
   id         String @id @default(uuid())
   providerId String
   dayOfWeek  Int
-  startTime  String
-  endTime    String
+  startMinute  Int
+  endMinute    Int 
 
   provider ProviderProfile @relation(fields: [providerId], references: [id])
 }
