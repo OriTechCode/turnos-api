@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { PrismaService } from "../prisma/prisma.service";
 import { UpsertProviderProfileDto } from "./dto/upsert-provider-profile.dto";
 import { CreateAvailabilityRuleDto } from "./dto/availability/create-availability-rule.dto";
+import { CreateAvailabilityExceptionDto } from "./dto/availability/create-exception.dto";
+import { localToUtcIso } from "./time";
 
 @Injectable()
 export class ProvidersService {
@@ -120,5 +122,35 @@ export class ProvidersService {
       return { ok: true };
     }
 
+    async addAvailabilityException(userId: string, dto: CreateAvailabilityExceptionDto) {
+      const profile = await this.prisma.providerProfile.findUnique({ where: { userId } });
+      if (!profile) throw new NotFoundException("Provider profile not found");
+
+      const startUtc = localToUtcIso(dto.startAtLocal, profile.timeZone);
+      const endUtc = localToUtcIso(dto.endAtLocal, profile.timeZone);
+
+      if (new Date(startUtc) >= new Date(endUtc)) {
+        throw new BadRequestException("Invalid time range");
+      }
+
+      return this.prisma.availabilityException.create({
+        data: {
+          providerId: profile.id,
+          startAt: new Date(startUtc),
+          endAt: new Date(endUtc),
+          reason: dto.reason,
+        },
+      });
+    }
+
+    async listAvailabilityExceptions(userId: string) {
+      const profile = await this.prisma.providerProfile.findUnique({ where: { userId } });
+      if (!profile) throw new NotFoundException("Provider profile not found");
+
+      return this.prisma.availabilityException.findMany({
+        where: { providerId: profile.id },
+        orderBy: { startAt: "asc" },
+      });
+    }
 
 }

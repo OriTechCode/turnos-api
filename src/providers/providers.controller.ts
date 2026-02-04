@@ -8,6 +8,8 @@ import { UpsertProviderProfileDto } from "./dto/upsert-provider-profile.dto";
 import { CreateServiceDto } from "./dto/create-service.dto";
 import { UpdateServiceDto } from "./dto/update-service.dto";
 import { CreateAvailabilityRuleDto } from "./dto/availability/create-availability-rule.dto";
+import { CreateAvailabilityExceptionDto } from "./dto/availability/create-exception.dto";
+
 
 @Controller("providers")
 export class ProvidersController {
@@ -68,4 +70,19 @@ export class ProvidersController {
     deleteRule(@Req() req: any, @Param("id") id: string) {
       return this.providers.deleteAvailabilityRule(req.user.sub, id);
     }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.PROVIDER)
+    @Post("me/availability/exceptions")
+    addException(@Req() req: any, @Body() dto: CreateAvailabilityExceptionDto) {
+      return this.providers.addAvailabilityException(req.user.sub, dto);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.PROVIDER)
+    @Get("me/availability/exceptions")
+    listExceptions(@Req() req: any) {
+      return this.providers.listAvailabilityExceptions(req.user.sub);
+    }
+
 }
