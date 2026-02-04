@@ -225,8 +225,7 @@ export class ProvidersService {
         endUtc: e.endAt,
       }));
 
-      // 6) Appointments existentes (UTC) — opcional pero recomendado
-      // Si todavía no estás usando turnos, podés comentar este bloque.
+      // 6) Appointments existentes (UTC)
       const appts = await this.prisma.appointment.findMany({
         where: {
           providerId: providerId,

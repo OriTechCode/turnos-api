@@ -1,98 +1,225 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Sistema de Turnos
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend para la gestión de turnos entre clientes y proveedores, con cálculo dinámico de disponibilidad, manejo de zonas horarias y control de estados del turno.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+El sistema está diseñado para reflejar un flujo real de reservas, evitando la persistencia de slots y calculando la disponibilidad en tiempo real a partir de reglas y eventos existentes.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tecnologías utilizadas
 
-## Project setup
+- Node.js
+- NestJS
+- Prisma ORM
+- PostgreSQL
+- JWT (JSON Web Tokens)
+- Luxon (manejo de fechas y zonas horarias)
+
+---
+
+## Arquitectura general
+
+El sistema se basa en los siguientes principios:
+
+- Autenticación con JWT
+- Control de acceso por roles
+- Persistencia de fechas en UTC
+- Conversión de horarios según la zona horaria del usuario
+- Cálculo dinámico de disponibilidad (no se guardan slots)
+
+---
+
+## Roles del sistema
+
+### ADMIN
+- Puede crear usuarios con rol PROVIDER
+
+### PROVIDER
+- Gestiona su perfil profesional
+- Define servicios (duración y buffer)
+- Define reglas de disponibilidad semanales
+- Define excepciones de disponibilidad (feriados, ausencias)
+- Visualiza su agenda
+- Actualiza el estado de los turnos
+
+### CLIENT
+- Consulta slots disponibles
+- Reserva turnos
+- Visualiza sus turnos
+- Cancela turnos propios
+
+---
+
+## Manejo de zonas horarias
+
+- Todas las fechas se almacenan en la base de datos en UTC
+- Cada provider define su zona horaria
+- El cliente puede solicitar los datos en su propia zona horaria
+- El sistema convierte automáticamente los horarios de entrada y salida
+
+Esto permite que un mismo turno se visualice correctamente desde distintas ubicaciones geográficas.
+
+---
+
+## Disponibilidad dinámica (feature principal)
+
+Los slots disponibles no se almacenan en la base de datos.
+
+Se calculan dinámicamente combinando:
+
+- Reglas semanales de disponibilidad
+- Excepciones de disponibilidad
+- Duración del servicio + buffer
+- Turnos existentes
+- Turnos cancelados no bloquean disponibilidad
+
+Cuando un turno se cancela, el horario vuelve a estar disponible automáticamente.
+
+---
+
+## Flujo principal del sistema
+
+1. El provider define su perfil y zona horaria
+2. El provider crea servicios con duración y buffer
+3. El provider define reglas semanales de disponibilidad
+4. El provider define excepciones (feriados, ausencias)
+5. El cliente consulta los slots disponibles
+6. El cliente reserva un turno
+7. El sistema recalcula la disponibilidad
+8. El cliente puede cancelar el turno
+9. El slot vuelve a estar disponible
+
+---
+
+## Estados del turno
+
+- PENDING
+- CONFIRMED
+- COMPLETED
+- NO_SHOW
+- CANCELLED
+
+Los estados reflejan el ciclo de vida real de una reserva y determinan si el turno bloquea o no la disponibilidad.
+
+Reglas de negocio:
+
+- Solo los turnos en estado CONFIRMED pueden cambiar de estado
+- COMPLETED, NO_SHOW y CANCELLED son estados finales
+- Los turnos CANCELLED no bloquean la disponibilidad
+
+---
+
+## Endpoints principales
+
+### Autenticación
+- POST /auth/register
+- POST /auth/login
+- GET /auth/me
+
+### Provider
+- POST /providers/me/profile
+- GET /providers/me/profile
+- POST /providers/me/services
+- GET /providers/me/services
+- POST /providers/me/availability/rules
+- POST /providers/me/availability/exceptions
+- GET /providers/me/appointments
+- PATCH /providers/me/appointments/:id/status
+
+### Cliente
+- POST /appointments
+- GET /appointments/me
+- PATCH /appointments/:id/cancel
+
+---
+
+## Ejecución del proyecto
+
+### Requisitos previos
+
+- Node.js v18 o superior
+- npm
+- PostgreSQL 14 o superior
+- Git
+
+---
+
+### Clonar el repositorio
 
 ```bash
-$ npm install
+git clone <url-del-repositorio>
+cd turnos-api
 ```
 
-## Compile and run the project
+---
+
+### Instalación de dependencias
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Run tests
+---
+
+### Configuración de variables de entorno
+
+Crear un archivo `.env` en la raíz del proyecto con el siguiente contenido:
+
+```env
+DATABASE_URL="postgresql://usuario:password@localhost:5432/turnos"
+JWT_SECRET="super-secret-key"
+```
+
+Notas importantes:
+- La base de datos `turnos` debe existir previamente en PostgreSQL
+- `JWT_SECRET` puede ser cualquier string seguro
+
+---
+
+### Migraciones de base de datos (Prisma)
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npx prisma migrate dev
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Opcional:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npx prisma generate
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+### Ejecución del servidor en modo desarrollo
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+npm run start:dev
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Si todo está configurado correctamente, la consola mostrará:
 
-## Support
+```text
+Nest application successfully started
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+---
 
-## Stay in touch
+### Servidor disponible en
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```
+http://localhost:3000
+```
 
-## License
+---
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Verificación rápida
+
+```bash
+curl http://localhost:3000
+```
+
+Respuesta esperada:
+
+```text
+Hello World!
+```
