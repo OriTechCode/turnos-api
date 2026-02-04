@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { UpsertProviderProfileDto } from "./dto/upsert-provider-profile.dto";
+import { CreateAvailabilityRuleDto } from "./dto/availability/create-availability-rule.dto";
 
 @Injectable()
 export class ProvidersService {
@@ -14,7 +16,7 @@ export class ProvidersService {
     return profile;
   }
 
-  async upsertMyProfile(userId: string, dto: { displayName: string; specialty?: string }) {
+  async upsertMyProfile(userId: string, dto: UpsertProviderProfileDto){
     // Validación: exigir que el usuario exista y sea PROVIDER
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException("User not found");
@@ -26,10 +28,12 @@ export class ProvidersService {
         userId,
         displayName: dto.displayName,
         specialty: dto.specialty,
+        timeZone: dto.timeZone ?? undefined,
       },
       update: {
         displayName: dto.displayName,
         specialty: dto.specialty,
+        timeZone: dto.timeZone ?? undefined,
       },
     });
   }
@@ -74,4 +78,47 @@ export class ProvidersService {
         data: dto,
     });
     }
+    
+    async addAvailabilityRule(userId: string, dto: CreateAvailabilityRuleDto) {
+      const profile = await this.prisma.providerProfile.findUnique({ where: { userId } });
+      if (!profile) throw new NotFoundException("Provider profile not found");
+
+      if (dto.startMinute >= dto.endMinute) {
+        throw new BadRequestException("Invalid time range");
+      }
+
+      return this.prisma.availabilityRule.create({
+        data: {
+          providerId: profile.id,
+          dayOfWeek: dto.dayOfWeek,
+          startMinute: dto.startMinute,
+          endMinute: dto.endMinute,
+        },
+      });
+    }
+
+    async listAvailabilityRules(userId: string) {
+      const profile = await this.prisma.providerProfile.findUnique({ where: { userId } });
+      if (!profile) throw new NotFoundException("Provider profile not found");
+
+      return this.prisma.availabilityRule.findMany({
+        where: { providerId: profile.id },
+        orderBy: [{ dayOfWeek: "asc" }, { startMinute: "asc" }],
+      });
+    }
+
+    async deleteAvailabilityRule(userId: string, ruleId: string) {
+      const profile = await this.prisma.providerProfile.findUnique({ where: { userId } });
+      if (!profile) throw new NotFoundException("Provider profile not found");
+
+      const rule = await this.prisma.availabilityRule.findFirst({
+        where: { id: ruleId, providerId: profile.id },
+      });
+      if (!rule) throw new NotFoundException("Rule not found");
+
+      await this.prisma.availabilityRule.delete({ where: { id: ruleId } });
+      return { ok: true };
+    }
+
+
 }

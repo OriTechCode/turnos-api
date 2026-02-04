@@ -8,4 +8,8 @@ export class UpsertProviderProfileDto {
   @IsOptional()
   @IsString()
   specialty?: string;
+
+  @IsOptional()
+  @IsString()
+  timeZone?: string; // IANA timezone
 }
