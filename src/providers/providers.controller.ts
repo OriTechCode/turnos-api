@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, UseGuards, Param, Patch, Delete } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Post, Req, UseGuards, Param, Patch, Delete, Query } from "@nestjs/common";
 import { ProvidersService } from "./providers.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
@@ -9,6 +9,7 @@ import { CreateServiceDto } from "./dto/create-service.dto";
 import { UpdateServiceDto } from "./dto/update-service.dto";
 import { CreateAvailabilityRuleDto } from "./dto/availability/create-availability-rule.dto";
 import { CreateAvailabilityExceptionDto } from "./dto/availability/create-exception.dto";
+import { DateTime } from "luxon";
 
 
 @Controller("providers")
@@ -83,6 +84,37 @@ export class ProvidersController {
     @Get("me/availability/exceptions")
     listExceptions(@Req() req: any) {
       return this.providers.listAvailabilityExceptions(req.user.sub);
+    }
+
+    @Get(":providerId/slots")
+    getSlots(
+      @Param("providerId") providerId: string,
+      @Query("date") date: string,
+      @Query("serviceId") serviceId: string,
+      @Query("tz") tz?: string,
+    ) {
+      if (!date) {
+        throw new BadRequestException("date is required (YYYY-MM-DD)");
+      }
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        throw new BadRequestException("date must be in YYYY-MM-DD format");
+      }
+
+      if (!serviceId) {
+        throw new BadRequestException("serviceId is required");
+      }
+      
+      if (tz && !DateTime.local().setZone(tz).isValid) {
+        throw new BadRequestException("tz must be a valid IANA timezone");
+      }
+
+      return this.providers.getSlotsForDate({
+        providerId,
+        date,
+        serviceId,
+        clientTz: tz,
+      });
     }
 
 }
